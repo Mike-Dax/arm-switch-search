@@ -2,7 +2,7 @@
 // @ts-ignore
 import { app, BrowserWindow, contentTracing, screen } from 'electron'
 import path from 'path'
-import { rename, writeFile, mkdir } from 'node:fs/promises'
+import { rename, readFile, writeFile, mkdir, unlink } from 'node:fs/promises'
 import { cwd } from 'node:process'
 import { randomBytes } from 'crypto'
 
@@ -74,7 +74,15 @@ app.whenReady().then(async () => {
   await new Promise((resolve, reject) => setTimeout(resolve, 5_000))
 
   const tracePath = await contentTracing.stopRecording();
-  await rename(tracePath, path.join(base, `trace.json`))
+  
+  // Rename/move the file in one go
+  // await rename(tracePath, path.join(base, `trace.json`))
+
+  // Copy the file manually, as renaming across volume bounds (/tmp to local run folder)
+  // isn't legal on Linux. Read -> Write -> Erase old
+  const traceFile = await readFile(tracePath)
+  await writeFile(path.join(base, `trace.json`), traceFile )
+  await unlink(tracePath)
 
   // take a screenshot too
   const screenshot = await mainWindow.webContents.capturePage()
